@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SolarWatch.Repository;
 using SolarWatch.Service;
 
 namespace SolarWatch.Controllers;
@@ -13,25 +15,39 @@ public class WeatherForecastController : ControllerBase
 
     private readonly IGeocodeProvider _geocodeProvider;
 
-   private readonly ISunsetDataProvider _sunsetDataProvider;
+    private readonly ISunsetDataProvider _sunsetDataProvider;
 
     private readonly IJsonProcessor _jsonProcessor;
 
-    public WeatherForecastController(ILogger<WeatherForecastController> logger, IGeocodeProvider geocodeProvider, IJsonProcessor jsonProcessor, ISunsetDataProvider sunsetDataProvider)
+    private readonly ICityRepository _cityRepository;
+
+    private readonly ISunriseSunsetRepository _sunriseSunsetRepository;
+
+    public WeatherForecastController(ILogger<WeatherForecastController> logger, IGeocodeProvider geocodeProvider, IJsonProcessor jsonProcessor, ISunsetDataProvider sunsetDataProvider, ICityRepository cityRepository, ISunriseSunsetRepository sunriseSunsetRepository)
     {
         _logger = logger;
         _geocodeProvider = geocodeProvider;
         _jsonProcessor = jsonProcessor;
         _sunsetDataProvider = sunsetDataProvider;
+        _cityRepository = cityRepository;
+        _sunriseSunsetRepository = sunriseSunsetRepository;
     }
 
-    [HttpGet("GetCityCode:{city}")]
+    [HttpGet("GetCityCode"), Authorize(Roles = "user, admin")]
     public async Task<ActionResult> Get(string city)
     {
         try
         {
-            var geoCode = await _geocodeProvider.GetGeoCode(city);
-            return Ok(_jsonProcessor.Process(geoCode));
+            var res = _cityRepository.GetCityByName(city);
+            if (res == null)
+            {
+                var geoCode = await _geocodeProvider.GetGeoCode(city);
+                var newCity = _jsonProcessor.Process(geoCode);
+                _cityRepository.AddCity(newCity);
+                return Ok(newCity);
+            }
+
+            return Ok(res);
         }
         catch (Exception e)
         {
@@ -41,13 +57,23 @@ public class WeatherForecastController : ControllerBase
         
     }
     
-    [HttpGet("GetCurrent")]
+    [HttpGet("GetCurrent"), Authorize(Roles="admin")]
     public async Task<ActionResult> GetCurrent(double lat, double lon)
     {
         try
         {
-            var weatherData = await _sunsetDataProvider.Get(lat, lon);
-            return Ok(_jsonProcessor.ProcessWeather(weatherData));
+            var res = _sunriseSunsetRepository.GetSuntime(lon, lat);
+            Console.WriteLine(res);
+            if (res == null)
+            {
+                var weatherData = await _sunsetDataProvider.Get(lat, lon);
+                var newSunData = _jsonProcessor.ProcessWeather(weatherData);
+                _sunriseSunsetRepository.AddSuntime(newSunData);
+                return Ok(newSunData);
+            }
+
+            return Ok(res);
+
         }
         catch (Exception e)
         {
@@ -56,7 +82,7 @@ public class WeatherForecastController : ControllerBase
         }
     }
 
-    [HttpGet("test")]
+    [HttpGet("test"), Authorize]
     public IActionResult Test()
     {
         return Ok("igen");

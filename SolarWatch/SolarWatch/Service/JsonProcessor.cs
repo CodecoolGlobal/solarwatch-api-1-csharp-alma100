@@ -5,43 +5,49 @@ namespace SolarWatch.Service;
 
 public class JsonProcessor : IJsonProcessor
 {
-    public GeoLocation Process(string data)
+    public City Process(string data)
     {
         JsonDocument json = JsonDocument.Parse(data);
-        
+
+        Console.WriteLine(json.RootElement[0]);
         JsonElement lat = json.RootElement[0].GetProperty("lat");
         JsonElement lon = json.RootElement[0].GetProperty("lon");
         
-        GeoLocation geoLocation = new GeoLocation
+        City city = new City()
         {
+            Name = json.RootElement[0].GetProperty("name").ToString(),
             Lat = lat.GetDouble(),
-            Lon = lon.GetDouble(),
+            Long = lon.GetDouble(),
+            State = json.RootElement[0].TryGetProperty("state", out var stateValue) ? stateValue.ToString() : "no State av.", //megnézi hogy van-e
+            Country = json.RootElement[0].GetProperty("country").ToString()
         };
 
-        return geoLocation;
+        return city;
     }
 
-    public WeatherForecast ProcessWeather(string data)
+    public SunriseSunset ProcessWeather(string data)
     {
         JsonDocument json = JsonDocument.Parse(data);
-        JsonElement main = json.RootElement.GetProperty("main");
-        JsonElement weather = json.RootElement.GetProperty("weather")[0];
-        
-        WeatherForecast forecast = new WeatherForecast
+        JsonElement coord = json.RootElement.GetProperty("coord");
+        JsonElement sys = json.RootElement.GetProperty("sys");
+
+        Console.WriteLine(GetDateTimeFromUnixTimeStamp(json.RootElement.GetProperty("sys").GetProperty("sunrise").GetInt64()));
+        SunriseSunset forecast = new SunriseSunset()
         {
-            Date = GetDateTimeFromUnixTimeStamp(json.RootElement.GetProperty("dt").GetInt64()),
-            TemperatureC = (int)main.GetProperty("temp").GetDouble(),
-            Summary = weather.GetProperty("description").GetString()
+            Long = coord.GetProperty("lon").GetDouble(),
+            Lat = coord.GetProperty("lat").GetDouble(),
+            Sunrise = GetDateTimeFromUnixTimeStamp(sys.GetProperty("sunrise").GetInt64()),
+            Sunset = GetDateTimeFromUnixTimeStamp(sys.GetProperty("sunset").GetInt64())
         };
 
         return forecast;
     }
     
-    private static DateOnly GetDateTimeFromUnixTimeStamp(long timeStamp)
+    private static DateTime GetDateTimeFromUnixTimeStamp(long timeStamp)
     {
         DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(timeStamp);
         DateTime dateTime = dateTimeOffset.UtcDateTime;
-
-        return DateOnly.FromDateTime(dateTime);
+        return dateTime;
+        //return DateOnly.FromDateTime(dateTime);
     }
 }

@@ -4,7 +4,7 @@ namespace SolarWatch.Service;
 
 public interface IJsonProcessor
 {
-    GeoLocation Process(string data);
+    City Process(string data);
 
-    WeatherForecast ProcessWeather(string data);
+    SunriseSunset ProcessWeather(string data);
 }
