@@ -82,7 +82,23 @@ public class WeatherForecastController : ControllerBase
         }
     }
 
-    [HttpGet("test"), Authorize]
+    [HttpGet("GetMoreDay")]
+    public async Task<ActionResult> GetMoreDay(double lat, double lon, int cycle)
+    {
+        try
+        {
+            var weatherData = await _sunsetDataProvider.GetMoreDay(lat, lon, cycle);
+            var newSunDatas = _jsonProcessor.ProcessWeather(weatherData, lat, lon, cycle);
+            return Ok(newSunDatas);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+    }
+
+    [HttpGet("test")]
     public IActionResult Test()
     {
         return Ok("igen");
